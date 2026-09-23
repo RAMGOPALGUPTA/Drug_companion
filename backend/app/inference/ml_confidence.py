@@ -3,6 +3,11 @@ ML confidence layer for the bundled MobileNetV3-Small INT8 TFLite model.
 
 The rule-based CIEDE2000 engine remains the primary explainable signal.
 The ML model corroborates ambiguous results and flags strong disagreement.
+
+The bundled bootstrap model is executed without LiteRT's default delegates.
+The installed Windows LiteRT runtime currently fails during XNNPACK
+preparation for this artifact, while the builtin resolver executes it
+successfully.
 """
 from dataclasses import dataclass
 from typing import Tuple
@@ -12,13 +17,16 @@ from .config import MLConfidenceConfig
 
 try:
     from ai_edge_litert import interpreter as tflite
+    from ai_edge_litert.interpreter import OpResolverType
     _BACKEND = "ai_edge_litert"
 except ImportError:
     try:
         import tflite_runtime.interpreter as tflite
+        OpResolverType = None
         _BACKEND = "tflite_runtime"
     except ImportError:
         tflite = None
+        OpResolverType = None
         _BACKEND = None
 
 
@@ -59,10 +67,16 @@ class TFLiteConfidenceModel:
             return
 
         try:
-            self.interpreter = tflite.Interpreter(
-                model_path=self.cfg.model_path,
-                num_threads=self.cfg.num_threads,
-            )
+            kwargs = {
+                "model_path": self.cfg.model_path,
+                "num_threads": self.cfg.num_threads,
+            }
+            if _BACKEND == "ai_edge_litert" and OpResolverType is not None:
+                kwargs["experimental_op_resolver_type"] = (
+                    OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+                )
+
+            self.interpreter = tflite.Interpreter(**kwargs)
             self.interpreter.allocate_tensors()
             self._input_details = self.interpreter.get_input_details()
             self._output_details = self.interpreter.get_output_details()
