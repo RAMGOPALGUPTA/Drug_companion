@@ -15,6 +15,18 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+@app.on_event("startup")
+def ensure_dev_schema_compatibility() -> None:
+    # The canonical schema creates this column; this guard upgrades an existing
+    # local development database created before location persistence was added.
+    try:
+        from app.db.repository import ensure_schema_compatibility
+        ensure_schema_compatibility()
+    except Exception:
+        # Readiness still reports database state; analysis has a process-memory fallback.
+        pass
+
+
 app.include_router(analysis_router)
 
 
