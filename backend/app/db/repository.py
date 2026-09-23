@@ -29,12 +29,13 @@ def persist_case(record: dict[str, Any]) -> bool:
     try:
         case_uuid = _case_uuid(record["case_id"])
         model = record["model"]
+        operator_key = record.get("operator_id") or record.get("officer") or "demo-operator"
         with _connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO operators(id, display_name) VALUES (%s,%s) "
                     "ON CONFLICT (id) DO NOTHING",
-                    ("demo-operator", record["officer"]),
+                    (operator_key, record["officer"]),
                 )
                 cur.execute(
                     """
@@ -71,7 +72,7 @@ def persist_case(record: dict[str, Any]) -> bool:
                         classification=EXCLUDED.classification, confidence=EXCLUDED.confidence
                     """,
                     (
-                        case_uuid, record["case_id"], "demo-operator", record["result"],
+                        case_uuid, record["case_id"], operator_key, record["result"],
                         record["confidence"], record.get("location") or "Field capture", record["created_at"], model["version"],
                         os.getenv("APP_VERSION", "0.3.0"),
                     ),
@@ -126,7 +127,7 @@ def persist_case(record: dict[str, Any]) -> bool:
                 )
                 cur.execute(
                     "INSERT INTO audit_log(case_id,operator_id,action,details) VALUES (%s,%s,%s,%s)",
-                    (case_uuid, "demo-operator", "analysis.completed",
+                    (case_uuid, operator_key, "analysis.completed",
                      Jsonb({"case_id": record["case_id"]})),
                 )
         return True
