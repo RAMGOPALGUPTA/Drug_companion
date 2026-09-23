@@ -1,68 +1,97 @@
-import React from "react";
-import { trendData } from "../data/demoData.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { getCases, getCasesSummary } from "../services/api.js";
+
+function dayKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
 export function Analytics() {
-  const totals = trendData.reduce(
-    (a, d) => ({ p: a.p + d.p, n: a.n + d.n, i: a.i + d.i }),
-    { p: 0, n: 0, i: 0 },
-  );
-  const total = totals.p + totals.n + totals.i;
+  const [summary, setSummary] = useState({ total_cases: 0, positive: 0, negative: 0, inconclusive: 0 });
+  const [cases, setCases] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([getCasesSummary(), getCases()])
+      .then(([nextSummary, nextCases]) => {
+        setSummary(nextSummary);
+        setCases(nextCases);
+      })
+      .catch((e) => setError(e.message || "Unable to load live analytics"));
+  }, []);
+
+  const trend = useMemo(() => {
+    const now = new Date();
+    const buckets = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      buckets.push({
+        day: d.toLocaleDateString(undefined, { day: "2-digit" }),
+        key: d.toISOString().slice(0, 10),
+        p: 0,
+        n: 0,
+        i: 0,
+      });
+    }
+    const map = new Map(buckets.map((x) => [x.key, x]));
+    cases.forEach((item) => {
+      const bucket = map.get(dayKey(item.time));
+      if (!bucket) return;
+      if (item.result === "positive") bucket.p += 1;
+      else if (item.result === "negative") bucket.n += 1;
+      else bucket.i += 1;
+    });
+    return buckets;
+  }, [cases]);
+
+  const max = Math.max(1, ...trend.map((d) => d.p + d.n + d.i));
+  const total = Number(summary.total_cases || 0);
+
   return (
     <div className="page-stack">
+      {error && <div className="error-banner">{error}</div>}
+
       <section className="signal-hero">
         <div>
-          <div className="panel-eyebrow">OPERATIONS / 7-DAY WINDOW</div>
-          <h2>
-            Find the signal
-            <br />
-            <em>between the cases.</em>
-          </h2>
+          <div className="panel-eyebrow">OPERATIONS / LIVE DATA</div>
+          <h2>Find the signal<br /><em>between the cases.</em></h2>
         </div>
-        <div className="big-number">
-          <strong>{total}</strong>
-          <span>field calls</span>
-        </div>
+        <div className="big-number"><strong>{total}</strong><span>persisted cases</span></div>
       </section>
+
       <section className="content-grid three-col">
         <div className="panel">
           <div className="panel-eyebrow">POSITIVE</div>
-          <div className="analytic-number amber">{totals.p}</div>
-          <div className="micro-copy">
-            {Math.round((totals.p / total) * 100)}% of recorded calls
-          </div>
+          <div className="analytic-number amber">{summary.positive || 0}</div>
+          <div className="micro-copy">{total ? Math.round((summary.positive / total) * 100) : 0}% of persisted cases</div>
         </div>
         <div className="panel">
           <div className="panel-eyebrow">NEGATIVE</div>
-          <div className="analytic-number">{totals.n}</div>
-          <div className="micro-copy">
-            {Math.round((totals.n / total) * 100)}% of recorded calls
-          </div>
+          <div className="analytic-number">{summary.negative || 0}</div>
+          <div className="micro-copy">{total ? Math.round((summary.negative / total) * 100) : 0}% of persisted cases</div>
         </div>
         <div className="panel">
           <div className="panel-eyebrow">INCONCLUSIVE</div>
-          <div className="analytic-number violet">{totals.i}</div>
-          <div className="micro-copy">
-            {Math.round((totals.i / total) * 100)}% need human review
-          </div>
+          <div className="analytic-number violet">{summary.inconclusive || 0}</div>
+          <div className="micro-copy">{total ? Math.round((summary.inconclusive / total) * 100) : 0}% require review</div>
         </div>
       </section>
+
       <section className="panel analytics-chart">
         <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">DAILY VOLUME</div>
-            <h2>Case density</h2>
-          </div>
+          <div><div className="panel-eyebrow">DAILY VOLUME</div><h2>Case density</h2></div>
           <span className="panel-note">Last 7 days</span>
         </div>
         <div className="line-chart">
-          {trendData.map((d, i) => (
-            <div className="line-day" key={d.day}>
-              <div
-                className="line-total"
-                style={{ height: `${((d.p + d.n + d.i) / 30) * 100}%` }}
-              >
-                <i style={{ height: `${(d.p / (d.p + d.n + d.i)) * 100}%` }} />
-                <i style={{ height: `${(d.n / (d.p + d.n + d.i)) * 100}%` }} />
-                <i style={{ height: `${(d.i / (d.p + d.n + d.i)) * 100}%` }} />
+          {trend.map((d) => (
+            <div className="line-day" key={d.key}>
+              <div className="line-total" style={{ height: ((d.p + d.n + d.i) / max) * 100 + "%" }}>
+                <i style={{ height: (d.p / Math.max(1, d.p + d.n + d.i)) * 100 + "%" }} />
+                <i style={{ height: (d.n / Math.max(1, d.p + d.n + d.i)) * 100 + "%" }} />
+                <i style={{ height: (d.i / Math.max(1, d.p + d.n + d.i)) * 100 + "%" }} />
               </div>
               <span>{d.day}</span>
             </div>
