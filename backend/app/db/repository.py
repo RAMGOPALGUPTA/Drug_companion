@@ -11,6 +11,11 @@ from psycopg.types.json import Jsonb
 DEFAULT_DATABASE_URL = "postgresql://drug_companion:drug_companion_dev@localhost:5432/drug_companion"
 
 
+def ensure_schema_compatibility() -> None:
+    with _connect() as conn:
+        conn.execute("ALTER TABLE cases ADD COLUMN IF NOT EXISTS location TEXT NOT NULL DEFAULT 'Field capture'")
+
+
 def database_url() -> str:
     return os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
@@ -60,14 +65,14 @@ def persist_case(record: dict[str, Any]) -> bool:
                     """
                     INSERT INTO cases (
                         id,case_reference,operator_id,classification,confidence,
-                        captured_at,model_version,app_version,sync_status
+                        location,captured_at,model_version,app_version,sync_status
                     ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'synced')
                     ON CONFLICT (id) DO UPDATE SET
                         classification=EXCLUDED.classification, confidence=EXCLUDED.confidence
                     """,
                     (
                         case_uuid, record["case_id"], "demo-operator", record["result"],
-                        record["confidence"], record["created_at"], model["version"],
+                        record["confidence"], record.get("location") or "Field capture", record["created_at"], model["version"],
                         os.getenv("APP_VERSION", "0.3.0"),
                     ),
                 )
@@ -144,7 +149,7 @@ def list_cases() -> list[dict[str, Any]]:
             {
                 "id": r["case_id"], "case_id": r["case_id"], "result": r["result"],
                 "confidence": r["confidence"], "officer": r["officer"],
-                "time": r["captured_at"].isoformat(), "location": "Field capture",
+                "time": r["captured_at"].isoformat(), "location": r["location"] or "Field capture",
                 "integrity": "verified", "storage": "postgresql",
                 "sync_status": r["sync_status"],
             }
@@ -161,7 +166,7 @@ def get_case(case_id: str) -> dict[str, Any] | None:
             row = conn.execute(
                 """
                 SELECT c.case_reference AS case_id, c.classification AS result, c.confidence,
-                       o.display_name AS officer, c.captured_at, c.model_version,
+                       c.location, o.display_name AS officer, c.captured_at, c.model_version,
                        e.packet, e.image_sha256, e.payload_sha256, e.integrity_status
                 FROM cases c
                 JOIN operators o ON o.id=c.operator_id
@@ -177,7 +182,7 @@ def get_case(case_id: str) -> dict[str, Any] | None:
         return {
             "id": row["case_id"], "case_id": row["case_id"], "result": row["result"],
             "confidence": row["confidence"], "officer": row["officer"],
-            "time": row["captured_at"].isoformat(), "location": "Field capture",
+            "time": row["captured_at"].isoformat(), "location": row["location"] or "Field capture",
             "integrity": row["integrity_status"] or "verified", "storage": "postgresql",
             "filename": stages.get("device_metadata", {}).get("filename"),
             "quality": stages.get("quality_gate", {}),
