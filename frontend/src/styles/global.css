@@ -1502,3 +1502,67 @@ a {
     display: none;
   }
 }
+
+
+/* Live backend integration */
+.capture-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.capture-fields label {
+  display: grid;
+  gap: 6px;
+}
+.capture-fields label span {
+  font-size: 10px;
+  letter-spacing: .12em;
+  opacity: .65;
+}
+.capture-fields input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.empty-state {
+  padding: 28px;
+  text-align: center;
+  opacity: .7;
+}
+.dossier-placeholder {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: rgba(255,255,255,.025);
+}
+.dossier-placeholder > div {
+  display: grid;
+  gap: 10px;
+  max-width: 80%;
+}
+.dossier-placeholder code {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  opacity: .7;
+}
+.json-block {
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.18);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.prototype-warning {
+  display: block;
+  margin-top: 10px;
+  opacity: .72;
+}
+@media (max-width: 760px) {
+  .capture-fields {
+    grid-template-columns: 1fr;
+  }
+}
