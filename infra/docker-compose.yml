@@ -17,5 +17,27 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backend:
+    build:
+      context: ../backend
+    container_name: drug-companion-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://drug_companion:drug_companion_dev@postgres:5432/drug_companion
+      APP_ENV: development
+      PIPELINE_VERSION: 1.0.0
+      APP_VERSION: 0.3.0
+    ports:
+      - "8003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
