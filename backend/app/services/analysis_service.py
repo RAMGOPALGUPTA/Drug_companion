@@ -30,16 +30,16 @@ _CASES: dict[str, dict] = {}
 MODEL_FILENAME = "mobilenetv3_small_int8.tflite"
 
 
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+def _backend_root() -> Path:
+    return Path(__file__).resolve().parents[2]
 
 
 def _model_path() -> Path:
-    return _repo_root() / "backend" / "models" / MODEL_FILENAME
+    return _backend_root() / "models" / MODEL_FILENAME
 
 
 def _metadata_path() -> Path:
-    return _repo_root() / "backend" / "models" / "model_metadata.json"
+    return _backend_root() / "models" / "model_metadata.json"
 
 
 def _config() -> PipelineConfig:
