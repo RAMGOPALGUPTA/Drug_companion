@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8003/api/v1'
 const DEMO_MODE = String(import.meta.env.VITE_DEMO_MODE ?? 'true') !== 'false'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
