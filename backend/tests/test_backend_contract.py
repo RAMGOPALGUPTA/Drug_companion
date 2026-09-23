@@ -43,3 +43,11 @@ def test_rejects_empty_image():
         files={"image": ("empty.png", b"", "image/png")},
     )
     assert response.status_code == 400
+
+
+def test_readiness():
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] in {"ready", "degraded"}
+    assert body["model_available"] is True
