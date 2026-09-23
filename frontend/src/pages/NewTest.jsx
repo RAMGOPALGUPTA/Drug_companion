@@ -1,14 +1,10 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { analyzeImage } from "../services/api.js";
+import { analyzeImage, getModelInfo } from "../services/api.js";
 import { pipelineLabels } from "../data/demoData.js";
 
-const demoChoices = [
-  ["positive_style.jpg", "Positive demo"],
-  ["negative_style.jpg", "Negative demo"],
-  ["poor_lighting.jpg", "Poor lighting"],
-  ["blurred.jpg", "Blurred"],
-];
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function Meter({ value }) {
   return (
@@ -26,38 +22,65 @@ export function NewTest() {
   const [pipelineStep, setPipelineStep] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [model, setModel] = useState(null);
+  const [operatorId, setOperatorId] = useState("demo-operator");
+  const [location, setLocation] = useState("Field capture");
 
   const stage = useMemo(
     () => pipelineLabels[Math.min(pipelineStep, pipelineLabels.length - 1)],
     [pipelineStep],
   );
 
+  useEffect(() => {
+    getModelInfo().then(setModel).catch(() => {});
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
   function selectFile(next) {
     if (!next) return;
+    setError("");
+
+    if (!ALLOWED_TYPES.has(next.type)) {
+      setError("Upload must be JPEG, PNG, or WEBP.");
+      return;
+    }
+    if (next.size > MAX_IMAGE_BYTES) {
+      setError("Image exceeds the 12 MB upload limit.");
+      return;
+    }
+
     setFile(next);
     setPreview(URL.createObjectURL(next));
     setResult(null);
-    setError("");
+    setPipelineStep(0);
   }
 
   async function runAnalysis() {
     if (!file) return;
+
     setBusy(true);
     setResult(null);
     setError("");
-    for (let i = 0; i < pipelineLabels.length; i += 1) {
-      setPipelineStep(i);
-      await new Promise((r) => setTimeout(r, 220));
-    }
+
     try {
-      setResult(await analyzeImage(file));
+      for (let i = 0; i < pipelineLabels.length; i += 1) {
+        setPipelineStep(i);
+        await new Promise((resolve) => setTimeout(resolve, 160));
+      }
+      const response = await analyzeImage(file, { operatorId, location });
+      setResult(response);
+      setPipelineStep(pipelineLabels.length - 1);
     } catch (e) {
       setError(e.message || "Unable to analyze image");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
-  const current = result?.result || "invalid";
+  const current = result?.result || "inconclusive";
+
   return (
     <div className="capture-page">
       <div className="capture-intro">
@@ -65,14 +88,18 @@ export function NewTest() {
           <div className="panel-eyebrow">CAPTURE LANE / STEP 1</div>
           <h2>Bring the strip into the frame.</h2>
           <p>
-            Place the reference card and test strip together. The backend
-            pipeline will normalize the image before model inference.
+            Upload a field image. The live backend runs quality gating,
+            calibration, ROI extraction, rule analysis, ML corroboration, and
+            evidence sealing.
           </p>
         </div>
         <div className="capture-contract">
-          <span>MODEL CONTRACT</span>
-          <strong>224 × 224</strong>
-          <small>RGB · 0–1 normalize · 3 classes</small>
+          <span>LIVE MODEL CONTRACT</span>
+          <strong>{model?.input?.slice(0, 2).join(" × ") || "224 × 224"}</strong>
+          <small>
+            {model?.normalization || "rescaling_0_to_1"} ·{" "}
+            {model?.class_labels?.length || 3} classes
+          </small>
         </div>
       </div>
 
@@ -96,7 +123,7 @@ export function NewTest() {
                 </div>
                 <strong>Drop a field image here</strong>
                 <span>or tap to browse</span>
-                <small>JPG · PNG · max 12MB</small>
+                <small>JPG · PNG · WEBP · max 12MB</small>
               </div>
             )}
             {preview && (
@@ -109,34 +136,27 @@ export function NewTest() {
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             hidden
             onChange={(e) => selectFile(e.target.files?.[0])}
           />
-          <div className="demo-row">
-            <span className="demo-label">DEMO FIXTURES</span>
-            {demoChoices.map(([name, label]) => (
-              <button
-                className="demo-chip"
-                key={name}
-                onClick={() =>
-                  fetch(`/demo-images/${name}`)
-                    .then((r) => r.blob())
-                    .then((blob) =>
-                      selectFile(new File([blob], name, { type: blob.type })),
-                    )
-                }
-              >
-                {label}
-              </button>
-            ))}
+
+          <div className="capture-fields">
+            <label>
+              <span>OPERATOR</span>
+              <input value={operatorId} onChange={(e) => setOperatorId(e.target.value)} />
+            </label>
+            <label>
+              <span>LOCATION</span>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} />
+            </label>
           </div>
         </section>
 
         <section className="panel process-panel">
           <div className="panel-head">
             <div>
-              <div className="panel-eyebrow">ANALYSIS PIPELINE</div>
+              <div className="panel-eyebrow">LIVE ANALYSIS PIPELINE</div>
               <h2>
                 {busy ? stage[1] : result ? "Pipeline complete" : "Standing by"}
               </h2>
@@ -147,6 +167,7 @@ export function NewTest() {
               <span className="idle-tag">IDLE</span>
             )}
           </div>
+
           <div className="pipeline-list">
             {pipelineLabels.map(([n, label], idx) => (
               <div
@@ -180,6 +201,7 @@ export function NewTest() {
               </div>
             ))}
           </div>
+
           {busy && (
             <div className="running-line">
               <span>RUNNING</span>
@@ -187,6 +209,7 @@ export function NewTest() {
               <em>stage {pipelineStep + 1}/6</em>
             </div>
           )}
+
           <div className="process-foot">
             <button
               className="primary-button"
@@ -196,24 +219,32 @@ export function NewTest() {
               {busy ? "Processing…" : "Analyze field image ↗"}
             </button>
             <span>
-              Demo mode: {String(import.meta.env.VITE_DEMO_MODE ?? "true")}
+              {model?.model_available ? "Backend model online" : "Checking backend model…"}
             </span>
           </div>
         </section>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
       {result && (
         <section className={`result-banner ${current}`}>
           <div className="result-main">
-            <div className="result-kicker">MODEL OUTPUT / {result.case_id}</div>
+            <div className="result-kicker">
+              LIVE MODEL OUTPUT / {result.case_id}
+            </div>
             <div className="result-word">
-              {current === "invalid" ? "INCONCLUSIVE" : current.toUpperCase()}
+              {current === "inconclusive" ? "INCONCLUSIVE" : current.toUpperCase()}
             </div>
             <div className="result-meta">
               {Math.round(result.confidence * 100)}% confidence ·{" "}
               {result.model.name} · {result.model.version}
             </div>
+            {result.demo_only && (
+              <small className="prototype-warning">
+                Bootstrap model — prototype output, not forensic validation.
+              </small>
+            )}
           </div>
           <div className="result-side">
             <div>
@@ -233,6 +264,10 @@ export function NewTest() {
               <strong>
                 {result.pipeline.roi.detected ? "DETECTED" : "REVIEW"}
               </strong>
+            </div>
+            <div>
+              <span>STORAGE</span>
+              <strong>{result.storage === "postgresql" ? "POSTGRESQL" : "MEMORY"}</strong>
             </div>
             <Link to={`/cases/${result.case_id}`} className="result-link">
               Open dossier →
