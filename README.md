@@ -2,17 +2,17 @@
 
 Digital field-testing companion for image-based strip analysis.
 
-## Status
+## Repository status
 
-Repository foundation. Backend implementation follows the architecture documented in `docs/ARCHITECTURE.md`.
+Foundation architecture is established. Backend implementation follows docs/ARCHITECTURE.md.
 
 ## Runtime
 
 - FastAPI
 - PostgreSQL 16
-- MobileNetV3 TFLite runtime
-- Docker Compose for local development
+- MobileNetV3 TFLite
+- Docker Compose
 
-## Important model status
+## Model status
 
-The supplied prototype model is a demonstration artifact and is not target-validated. The application must preserve that status and must not represent prototype metrics as forensic or production validation.
+The supplied prototype model is a demonstration artifact and is not target-validated. Prototype metrics must not be represented as target validation or forensic/production approval.
