@@ -9,6 +9,14 @@ import uuid
 import cv2
 import numpy as np
 
+from app.db.repository import (
+    database_available,
+    get_case as db_get_case,
+    get_evidence as db_get_evidence,
+    get_summary as db_get_summary,
+    list_cases as db_list_cases,
+    persist_case,
+)
 from app.evidence.evidence_packet import build_evidence_packet
 from app.inference.calibration import calibrate
 from app.inference.config import PipelineConfig
@@ -57,12 +65,8 @@ def get_model_info() -> dict:
     path = _model_path()
     metadata = _model_metadata()
     model = _model()
-    artifact_sha256 = None
-    artifact_size = None
-    if path.exists():
-        artifact_sha256 = sha256(path.read_bytes()).hexdigest()
-        artifact_size = path.stat().st_size
-
+    artifact_sha256 = sha256(path.read_bytes()).hexdigest() if path.exists() else None
+    artifact_size = path.stat().st_size if path.exists() else None
     return {
         "name": metadata.get("model_architecture", "MobileNetV3-Small"),
         "version": metadata.get("training_timestamp", "unknown"),
@@ -75,6 +79,7 @@ def get_model_info() -> dict:
         "class_labels": metadata.get("class_labels", ["negative", "positive", "invalid"]),
         "runtime": "ai_edge_litert" if model.is_available else "unavailable",
         "model_available": model.is_available,
+        "load_error": model.load_error,
         "model_type": metadata.get("model_type", "SYNTHETIC_DEMO / BOOTSTRAP"),
         "target_validated": bool(metadata.get("target_validated", False)),
         "forensic_status": metadata.get(
@@ -92,7 +97,13 @@ def _overall(resolved: dict) -> str:
     return "inconclusive"
 
 
-def analyze_bytes(data: bytes, filename: str | None = None):
+def analyze_bytes(
+    data: bytes,
+    filename: str | None = None,
+    officer: str = "Field Operator",
+    location: str = "Field capture",
+    image_mime: str | None = None,
+):
     cfg = _config()
     image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
     if image is None:
@@ -101,42 +112,24 @@ def analyze_bytes(data: bytes, filename: str | None = None):
     quality = run_quality_gate(image, cfg.quality_gate)
     if not quality.passed:
         packet = build_evidence_packet(
-            data,
-            quality.to_dict(),
-            {"passed": False, "failure_reason": "not_attempted"},
-            {"strip_found": False, "calibrated_pad_rgb": {}},
-            {},
-            {},
+            data, quality.to_dict(), {"passed": False, "failure_reason": "not_attempted"},
+            {"strip_found": False, "calibrated_pad_rgb": {}}, {}, {},
             {"pipeline_status": "aborted", "reason": "quality_gate_failed"},
-            {"filename": filename},
-            cfg.evidence,
+            {"filename": filename, "model": get_model_info()}, cfg.evidence,
         )
-        return _store(filename, "inconclusive", 0.0, quality.to_dict(), packet, {}, {}, {})
+        return _store(filename, "inconclusive", 0.0, quality.to_dict(), packet, {}, {}, officer, location, image_mime, len(data))
 
     calibration = calibrate(image, cfg.calibration)
     roi = extract_rois(image, PAD_NAMES, orientation="vertical")
     if not roi.strip_found:
         packet = build_evidence_packet(
-            data,
-            quality.to_dict(),
-            calibration.to_dict(),
-            {"strip_found": False, "calibrated_pad_rgb": {}},
-            {},
-            {},
+            data, quality.to_dict(), calibration.to_dict(),
+            {"strip_found": False, "calibrated_pad_rgb": {}}, {}, {},
             {"pipeline_status": "aborted", "reason": "roi_extraction_failed"},
-            {"filename": filename},
-            cfg.evidence,
+            {"filename": filename, "model": get_model_info()}, cfg.evidence,
         )
-        return _store(
-            filename,
-            "inconclusive",
-            0.0,
-            quality.to_dict(),
-            packet,
-            calibration.to_dict(),
-            {},
-            {},
-        )
+        return _store(filename, "inconclusive", 0.0, quality.to_dict(), packet,
+                      calibration.to_dict(), {}, officer, location, image_mime, len(data))
 
     calibrated = {
         name: tuple(calibration.apply(np.asarray(rgb)).tolist())
@@ -149,163 +142,128 @@ def analyze_bytes(data: bytes, filename: str | None = None):
 
     for analyte, verdict in deltae.items():
         patch = roi.pad_rois.get(analyte)
-        rgb = (
-            cv2.cvtColor(patch, cv2.COLOR_BGR2RGB)
-            if patch is not None
-            else np.zeros((224, 224, 3), dtype=np.uint8)
-        )
+        rgb = cv2.cvtColor(patch, cv2.COLOR_BGR2RGB) if patch is not None else np.zeros((224, 224, 3), dtype=np.uint8)
         ml_verdict = model.predict(rgb)
         ml[analyte] = ml_verdict.to_dict()
         resolved[analyte] = resolve_with_ml(verdict.call, ml_verdict, cfg.ml_confidence)
 
     result = _overall(resolved)
     confidence = round(
-        max(
-            (
-                v.get("ml_confidence", 0.0)
-                for v in resolved.values()
-                if v.get("ml_confidence") is not None
-            ),
-            default=0.0,
-        ),
-        4,
+        max((v.get("ml_confidence", 0.0) for v in resolved.values()
+             if v.get("ml_confidence") is not None), default=0.0), 4,
     )
-
     packet = build_evidence_packet(
-        data,
-        quality.to_dict(),
-        calibration.to_dict(),
+        data, quality.to_dict(), calibration.to_dict(),
         {"strip_found": True, "calibrated_pad_rgb": calibrated},
-        {k: v.to_dict() for k, v in deltae.items()},
-        ml,
-        resolved,
-        {"filename": filename, "model_available": model.is_available},
-        cfg.evidence,
+        {k: v.to_dict() for k, v in deltae.items()}, ml, resolved,
+        {"filename": filename, "model": get_model_info()}, cfg.evidence,
     )
-    return _store(
-        filename,
-        result,
-        confidence,
-        quality.to_dict(),
-        packet,
-        calibration.to_dict(),
-        {k: v.to_dict() for k, v in deltae.items()},
-        ml,
-    )
+    return _store(filename, result, confidence, quality.to_dict(), packet,
+                  calibration.to_dict(), {k: v.to_dict() for k, v in deltae.items()},
+                  officer, location, image_mime, len(data))
 
 
-def _store(filename, result, confidence, quality, packet, calibration, deltae, ml):
+def _store(filename, result, confidence, quality, packet, calibration, deltae,
+           officer, location, image_mime, image_size):
     case_id = "CASE-" + uuid.uuid4().hex[:8].upper()
-    resolved = packet.final_verdicts
     model_info = get_model_info()
     record = {
-        "case_id": case_id,
-        "created_at": packet.created_utc,
-        "filename": filename,
-        "result": result,
-        "confidence": confidence,
-        "officer": "Field Operator",
-        "location": "Field capture",
-        "quality": quality,
-        "calibration": calibration,
-        "deltae": deltae,
-        "ml": ml,
-        "resolved": resolved,
-        "model": model_info,
-        "evidence_packet": packet.to_dict(),
+        "case_id": case_id, "created_at": packet.created_utc, "filename": filename,
+        "result": result, "confidence": confidence, "officer": officer,
+        "location": location, "image_mime": image_mime, "image_size": image_size,
+        "quality": quality, "calibration": calibration, "deltae": deltae,
+        "ml": packet.stages.get("ml_confidence", {}), "resolved": packet.final_verdicts,
+        "model": model_info, "evidence_packet": packet.to_dict(),
         "evidence": {
             "image_sha256": packet.source_image_sha256,
-            "payload_sha256": packet.chained_hash,
-            "integrity": "verified",
+            "payload_sha256": packet.chained_hash, "integrity": "verified",
         },
     }
     _CASES[case_id] = record
-
-    return {
-        "case_id": case_id,
-        "result": result,
-        "confidence": confidence,
-        "rule_based_call": next(
-            (v.get("rule_based_call") for v in resolved.values() if isinstance(v, dict)),
-            "inconclusive",
-        ),
+    stored = persist_case(record)
+    result_payload = {
+        "case_id": case_id, "result": result, "confidence": confidence,
+        "rule_based_call": next((v.get("rule_based_call") for v in packet.final_verdicts.values()
+                                 if isinstance(v, dict)), "inconclusive"),
         "model": model_info,
+        "storage": "postgresql" if stored else "process_memory",
         "pipeline": {
             "image_quality": quality,
             "calibration": calibration,
             "roi": {"detected": bool(deltae)},
             "rule_engine": {"call": result, "analytes": deltae},
-            "ml": {
-                "label": result,
-                "confidence": confidence,
-                "available": model_info["model_available"],
-                "analytes": ml,
-            },
+            "ml": {"label": result, "confidence": confidence,
+                   "available": model_info["model_available"], "analytes": record["ml"]},
         },
-        "evidence": record["evidence"],
-        "analytes": resolved,
+        "evidence": record["evidence"], "analytes": packet.final_verdicts,
         "evidence_packet": record["evidence_packet"],
         "demo_only": not model_info["target_validated"],
     }
+    return result_payload
 
 
 def list_cases():
+    rows = db_list_cases()
+    if rows:
+        return rows
     return [
-        {
-            "id": case_id,
-            "case_id": case_id,
-            "result": record["result"],
-            "confidence": record["confidence"],
-            "officer": record["officer"],
-            "time": record["created_at"][11:16],
-            "location": record["location"],
-            "integrity": "verified",
-        }
-        for case_id, record in reversed(list(_CASES.items()))
+        {**{"id": cid, "case_id": cid}, **{
+            "result": r["result"], "confidence": r["confidence"], "officer": r["officer"],
+            "time": r["created_at"], "location": r["location"], "integrity": "verified",
+            "storage": "process_memory",
+        }}
+        for cid, r in reversed(list(_CASES.items()))
     ]
 
 
 def get_case(case_id):
+    db_record = db_get_case(case_id)
+    if db_record is not None:
+        return db_record
     record = _CASES.get(case_id)
     if record is None:
         return None
     return {
-        "id": case_id,
-        "case_id": case_id,
-        "result": record["result"],
-        "confidence": record["confidence"],
-        "officer": record["officer"],
-        "time": record["created_at"][11:16],
-        "location": record["location"],
-        "integrity": "verified",
-        "filename": record["filename"],
-        "quality": record["quality"],
-        "calibration": record["calibration"],
-        "deltae": record["deltae"],
-        "ml": record["ml"],
-        "resolved": record["resolved"],
-        "model": record["model"],
-        "evidence": record["evidence"],
-        "evidence_packet": record["evidence_packet"],
+        "id": case_id, "case_id": case_id, "result": record["result"],
+        "confidence": record["confidence"], "officer": record["officer"],
+        "time": record["created_at"], "location": record["location"],
+        "integrity": "verified", "storage": "process_memory", **{
+            k: record[k] for k in (
+                "filename","quality","calibration","deltae","ml","resolved",
+                "model","evidence","evidence_packet"
+            )
+        },
     }
 
 
 def get_evidence(case_id):
+    db_record = db_get_evidence(case_id)
+    if db_record is not None:
+        return db_record
     record = _CASES.get(case_id)
     return record["evidence_packet"] if record else None
 
 
 def get_summary() -> dict:
+    summary = db_get_summary()
+    if summary is not None:
+        summary["model"] = get_model_info()
+        return summary
     records = list(_CASES.values())
     counts = {"positive": 0, "negative": 0, "inconclusive": 0}
     for record in records:
         counts[record["result"]] = counts.get(record["result"], 0) + 1
-
     return {
-        "total_cases": len(records),
-        "positive": counts["positive"],
-        "negative": counts["negative"],
-        "inconclusive": counts["inconclusive"],
-        "model": get_model_info(),
-        "storage": "process_memory",
+        "total_cases": len(records), "positive": counts["positive"],
+        "negative": counts["negative"], "inconclusive": counts["inconclusive"],
+        "model": get_model_info(), "storage": "process_memory",
+    }
+
+
+def get_storage_status() -> dict:
+    available = database_available()
+    return {
+        "backend": "postgresql" if available else "process_memory",
+        "database_available": available,
+        "fallback_enabled": True,
     }
