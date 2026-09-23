@@ -79,7 +79,13 @@ def verify_case_evidence(case_id: str) -> dict:
     evidence = get_evidence(case_id)
     if evidence is None:
         raise HTTPException(status_code=404, detail="Case not found")
-    return verify_packet_dict(evidence)
+    result = verify_packet_dict(evidence)
+    return {
+        **result,
+        "valid": bool(result.get("chain_valid")) and result.get("source_image_hash_valid") is not False,
+        "image_sha256": evidence.get("source_image_sha256"),
+        "payload_sha256": evidence.get("chained_hash"),
+    }
 
 
 @router.get("/model")
