@@ -48,7 +48,6 @@ def cases_summary() -> dict:
 @router.get("/cases/{case_id}")
 def case_detail(case_id: str) -> dict:
     from app.services.analysis_service import get_case
-    record = case_detail = None
     record = get_case(case_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Case not found")
