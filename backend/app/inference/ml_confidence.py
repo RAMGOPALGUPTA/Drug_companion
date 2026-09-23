@@ -1,30 +1,22 @@
 """
-ML confidence layer: MobileNetV3-Small (int8 quantized, TFLite) secondary
-classifier used only to arbitrate the ambiguous Delta-E band and to
-provide a corroborating/contradicting confidence signal for the evidence
-record. This layer never overrides a *confident* Delta-E call on its own;
-it only resolves "inconclusive" verdicts and flags disagreement.
+ML confidence layer for the bundled MobileNetV3-Small INT8 TFLite model.
 
-Design note: keeping the rule-based engine primary and the ML model
-secondary/advisory is a deliberate choice for evidentiary explainability
-— the rule-based path is fully traceable to a documented formula (CIEDE2000)
-and reference values, whereas the ML path is treated as a corroborating
-signal, not the basis of the call, unless explicitly configured otherwise.
+The rule-based CIEDE2000 engine remains the primary explainable signal.
+The ML model corroborates ambiguous results and flags strong disagreement.
 """
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Tuple
 import numpy as np
 
 from .config import MLConfidenceConfig
 
 try:
-    import tflite_runtime.interpreter as tflite
-    _BACKEND = "tflite_runtime"
+    from ai_edge_litert import interpreter as tflite
+    _BACKEND = "ai_edge_litert"
 except ImportError:
     try:
-        import tensorflow as tf
-        tflite = tf.lite
-        _BACKEND = "tensorflow"
+        import tflite_runtime.interpreter as tflite
+        _BACKEND = "tflite_runtime"
     except ImportError:
         tflite = None
         _BACKEND = None
@@ -51,46 +43,31 @@ class MLVerdict:
 
 
 class TFLiteConfidenceModel:
-    """Thin wrapper around a TFLite Interpreter for int8 MobileNetV3-Small."""
+    """Runtime wrapper for the bundled INT8 MobileNetV3-Small TFLite model."""
 
     def __init__(self, cfg: MLConfidenceConfig):
         self.cfg = cfg
         self.interpreter = None
         self._input_details = None
         self._output_details = None
+        self.load_error = None
         self._load()
 
     def _load(self):
         if tflite is None:
+            self.load_error = "No LiteRT interpreter is installed"
             return
-        # Attempt loading with BUILTIN_WITHOUT_DEFAULT_DELEGATES first to avoid Windows XNNPack crashes on quantized models
-        op_resolver = getattr(getattr(tflite, "experimental", None), "OpResolverType", None)
-        interp = None
-        if op_resolver is not None and hasattr(op_resolver, "BUILTIN_WITHOUT_DEFAULT_DELEGATES"):
-            try:
-                interp = tflite.Interpreter(
-                    model_path=self.cfg.model_path,
-                    num_threads=self.cfg.num_threads,
-                    experimental_op_resolver_type=op_resolver.BUILTIN_WITHOUT_DEFAULT_DELEGATES
-                )
-                interp.allocate_tensors()
-            except Exception:
-                interp = None
 
-        if interp is None:
-            try:
-                interp = tflite.Interpreter(
-                    model_path=self.cfg.model_path, num_threads=self.cfg.num_threads
-                )
-                interp.allocate_tensors()
-            except Exception:
-                interp = None
-
-        if interp is not None:
-            self.interpreter = interp
+        try:
+            self.interpreter = tflite.Interpreter(
+                model_path=self.cfg.model_path,
+                num_threads=self.cfg.num_threads,
+            )
+            self.interpreter.allocate_tensors()
             self._input_details = self.interpreter.get_input_details()
             self._output_details = self.interpreter.get_output_details()
-        else:
+        except Exception as exc:
+            self.load_error = str(exc)
             self.interpreter = None
 
     @property
@@ -98,7 +75,6 @@ class TFLiteConfidenceModel:
         return self.interpreter is not None
 
     def _quantize_input(self, rgb_float01: np.ndarray) -> np.ndarray:
-        """Apply the model's int8 quantization params to a [0,1] float image."""
         detail = self._input_details[0]
         scale, zero_point = detail["quantization"]
         if scale == 0:
@@ -106,8 +82,7 @@ class TFLiteConfidenceModel:
         quantized = rgb_float01 / scale + zero_point
         dtype = detail["dtype"]
         qmin, qmax = (0, 255) if dtype == np.uint8 else (-128, 127)
-        quantized = np.clip(np.round(quantized), qmin, qmax)
-        return quantized.astype(dtype)
+        return np.clip(np.round(quantized), qmin, qmax).astype(dtype)
 
     def _dequantize_output(self, raw: np.ndarray) -> np.ndarray:
         detail = self._output_details[0]
@@ -117,40 +92,44 @@ class TFLiteConfidenceModel:
         return (raw.astype(np.float32) - zero_point) * scale
 
     def predict(self, patch_rgb_uint8: np.ndarray) -> MLVerdict:
-        """
-        Run inference on a single 224x224x3 RGB uint8 patch.
-        Returns an MLVerdict; if the model isn't available, returns a
-        clearly-flagged fallback verdict rather than raising, so the
-        pipeline can proceed to human review.
-        """
         labels = self.cfg.class_labels
-
         if not self.is_available:
             return MLVerdict(
-                label="unavailable", confidence=0.0, raw_scores=(0.0,) * len(labels),
-                backend=_BACKEND or "none", model_available=False,
-                note="TFLite model not loaded; ML confidence layer skipped. "
-                     "Result relies on rule-based Delta-E engine only.",
+                label="unavailable",
+                confidence=0.0,
+                raw_scores=(0.0,) * len(labels),
+                backend=_BACKEND or "none",
+                model_available=False,
+                note=self.load_error or "Model unavailable",
             )
 
-        resized = _resize_to(patch_rgb_uint8, self.cfg.input_size)
-        float01 = resized.astype(np.float32) / 255.0
-        quantized = self._quantize_input(float01)
-        input_tensor = np.expand_dims(quantized, axis=0)
-
-        self.interpreter.set_tensor(self._input_details[0]["index"], input_tensor)
-        self.interpreter.invoke()
-        raw_output = self.interpreter.get_tensor(self._output_details[0]["index"])[0]
-        scores = _softmax(self._dequantize_output(raw_output))
-
-        best_idx = int(np.argmax(scores))
-        best_label = labels[best_idx] if best_idx < len(labels) else f"class_{best_idx}"
-
-        return MLVerdict(
-            label=best_label, confidence=float(scores[best_idx]),
-            raw_scores=tuple(float(s) for s in scores),
-            backend=_BACKEND, model_available=True,
-        )
+        try:
+            resized = _resize_to(patch_rgb_uint8, self.cfg.input_size)
+            float01 = resized.astype(np.float32) / 255.0
+            quantized = self._quantize_input(float01)
+            input_tensor = np.expand_dims(quantized, axis=0)
+            self.interpreter.set_tensor(self._input_details[0]["index"], input_tensor)
+            self.interpreter.invoke()
+            raw_output = self.interpreter.get_tensor(self._output_details[0]["index"])[0]
+            scores = _softmax(self._dequantize_output(raw_output))
+            best_idx = int(np.argmax(scores))
+            best_label = labels[best_idx] if best_idx < len(labels) else f"class_{best_idx}"
+            return MLVerdict(
+                label=best_label,
+                confidence=float(scores[best_idx]),
+                raw_scores=tuple(float(s) for s in scores),
+                backend=_BACKEND or "none",
+                model_available=True,
+            )
+        except Exception as exc:
+            return MLVerdict(
+                label="unavailable",
+                confidence=0.0,
+                raw_scores=(0.0,) * len(labels),
+                backend=_BACKEND or "none",
+                model_available=False,
+                note=f"Inference failed: {exc}",
+            )
 
 
 def _resize_to(img: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
@@ -164,14 +143,7 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     return e / e.sum()
 
 
-def resolve_with_ml(deltae_call: str, ml_verdict: MLVerdict,
-                     cfg: MLConfidenceConfig) -> dict:
-    """
-    Combine the Delta-E rule-based call with the ML verdict into a final
-    decision + audit trail. Rule-based confident calls are only flagged
-    (not overridden) if ML strongly disagrees; inconclusive rule-based
-    calls are resolved by ML confidence if it clears min_confidence.
-    """
+def resolve_with_ml(deltae_call: str, ml_verdict: MLVerdict, cfg: MLConfidenceConfig) -> dict:
     result = {
         "rule_based_call": deltae_call,
         "ml_label": ml_verdict.label,
@@ -197,7 +169,6 @@ def resolve_with_ml(deltae_call: str, ml_verdict: MLVerdict,
             result["resolution"] = "ml_confidence_insufficient"
             result["flagged_for_review"] = True
     else:
-        # Rule-based was confident; check for strong ML disagreement.
         ml_disagrees = (
             ml_verdict.label in ("positive", "negative")
             and ml_verdict.label != deltae_call
@@ -206,6 +177,5 @@ def resolve_with_ml(deltae_call: str, ml_verdict: MLVerdict,
         if ml_disagrees:
             result["resolution"] = "rule_ml_disagreement"
             result["flagged_for_review"] = True
-            # Final call intentionally stays rule-based per design note above.
 
     return result
