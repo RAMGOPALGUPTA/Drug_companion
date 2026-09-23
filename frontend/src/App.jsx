@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   NavLink,
   Route,
@@ -12,6 +12,7 @@ import { Cases } from "./pages/Cases.jsx";
 import { CaseDetail } from "./pages/CaseDetail.jsx";
 import { Evidence } from "./pages/Evidence.jsx";
 import { Analytics } from "./pages/Analytics.jsx";
+import { getModelInfo, getStorageStatus } from "./services/api.js";
 
 function Glyph({ type, size = 18 }) {
   const paths = {
@@ -41,6 +42,13 @@ function Glyph({ type, size = 18 }) {
 
 function Shell({ children }) {
   const location = useLocation();
+  const [runtime, setRuntime] = useState({ model: false, database: false });
+
+  useEffect(() => {
+    Promise.all([getModelInfo(), getStorageStatus()])
+      .then(([model, storage]) => setRuntime({ model: model.model_available, database: storage.database_available }))
+      .catch(() => setRuntime({ model: false, database: false }));
+  }, []);
   const navigate = useNavigate();
   const title = useMemo(() => {
     if (location.pathname.startsWith("/new-test"))
@@ -122,7 +130,7 @@ function Shell({ children }) {
           </div>
           <div className="topbar-actions">
             <div className="status-chip">
-              <span className="chip-dot" /> API READY
+              <span className="chip-dot" /> {runtime.model && runtime.database ? "API READY" : "API DEGRADED"}
             </div>
             <button
               className="quick-capture"
@@ -134,8 +142,8 @@ function Shell({ children }) {
         </header>
         {children}
         <footer className="footer-line">
-          <span>Prototype environment · Synthetic demo data</span>
-          <span>MODEL / MobileNetV3-Small · 224×224 RGB</span>
+          <span>Prototype environment · Live backend data</span>
+          <span>MODEL / MobileNetV3-Small · 224×224 RGB · bootstrap</span>
         </footer>
       </main>
     </div>
