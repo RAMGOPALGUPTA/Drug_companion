@@ -1,0 +1,9 @@
+{
+  "target_dataset_available": false,
+  "target_real_images": 0,
+  "bootstrap_data_available": true,
+  "synthetic_demo_data_available": true,
+  "production_ready": false,
+  "prototype_demo_ready": true,
+  "disclaimer": "No real narcotics field-test data was used. Real narcotics performance cannot and will not be claimed without authentic laboratory validation data."
+}

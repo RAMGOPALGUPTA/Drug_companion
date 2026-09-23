@@ -1,0 +1,10 @@
+{
+  "public_datasets_evaluated": [
+    "SMCR",
+    "University of Reading Colorimetric",
+    "Beyond-RGB"
+  ],
+  "purpose": "Colorimetric feature pretraining, camera and lighting robustness",
+  "intended_use": "Software pipeline validation",
+  "target_validated": false
+}

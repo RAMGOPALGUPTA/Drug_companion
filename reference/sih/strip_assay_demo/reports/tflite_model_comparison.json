@@ -1,0 +1,23 @@
+{
+  "Keras_FP32": {
+    "avg_latency_ms": 72.6,
+    "agreement_with_baseline": 1.0,
+    "mean_confidence": 0.5562622547149658
+  },
+  "TFLite_FP32": {
+    "avg_latency_ms": 23.59,
+    "agreement_with_baseline": 1.0,
+    "mean_confidence": 0.4108
+  },
+  "TFLite_FP16": {
+    "avg_latency_ms": 23.22,
+    "agreement_with_baseline": 1.0,
+    "mean_confidence": 0.4131
+  },
+  "TFLite_INT8": {
+    "avg_latency_ms": 168.85,
+    "agreement_with_baseline": 1.0,
+    "mean_confidence": 0.4369
+  },
+  "INT8_acceptance_status": "ACCEPTED"
+}

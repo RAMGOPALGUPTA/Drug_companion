@@ -1,0 +1,29 @@
+{
+  "dataset": "synthetic_target_style",
+  "split": "TEST",
+  "total_test_samples": 36,
+  "decided_samples": 0,
+  "inconclusive_rate": 1.0,
+  "accuracy_on_decided": 0.0,
+  "overall_accuracy": 0.3333,
+  "mean_latency_ms": 95.68,
+  "mean_confidence": 0.2204,
+  "confusion_matrix": [
+    [
+      0,
+      0,
+      15
+    ],
+    [
+      0,
+      0,
+      9
+    ],
+    [
+      0,
+      0,
+      12
+    ]
+  ],
+  "forensic_status": "SYNTHETIC_PROTOTYPE_DEMO_ONLY_NOT_FORENSICALLY_VALIDATED"
+}

@@ -17,18 +17,5 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  api:
-    build:
-      context: ../backend
-    environment:
-      DATABASE_URL: postgresql://drug_companion:drug_companion_dev@postgres:5432/drug_companion
-      APP_ENV: development
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   postgres_data:

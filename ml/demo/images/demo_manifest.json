@@ -1,0 +1,56 @@
+[
+  {
+    "filename": "positive_style.jpg",
+    "path": "demo\\images\\positive_style.jpg",
+    "state": "positive",
+    "condition": "normal",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: positive state under normal condition."
+  },
+  {
+    "filename": "negative_style.jpg",
+    "path": "demo\\images\\negative_style.jpg",
+    "state": "negative",
+    "condition": "normal",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: negative state under normal condition."
+  },
+  {
+    "filename": "inconclusive_style.jpg",
+    "path": "demo\\images\\inconclusive_style.jpg",
+    "state": "inconclusive",
+    "condition": "normal",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: inconclusive state under normal condition."
+  },
+  {
+    "filename": "poor_lighting.jpg",
+    "path": "demo\\images\\poor_lighting.jpg",
+    "state": "positive",
+    "condition": "poor_lighting",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: positive state under poor_lighting condition."
+  },
+  {
+    "filename": "blurred.jpg",
+    "path": "demo\\images\\blurred.jpg",
+    "state": "positive",
+    "condition": "blurred",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: positive state under blurred condition."
+  },
+  {
+    "filename": "perspective_distorted.jpg",
+    "path": "demo\\images\\perspective_distorted.jpg",
+    "state": "positive",
+    "condition": "perspective",
+    "synthetic_demo": true,
+    "target_validated": false,
+    "description": "Synthetic demo test strip: positive state under perspective condition."
+  }
+]

@@ -1,0 +1,1 @@
+import*as FileSystem from'expo-file-system';import{CryptoDigestAlgorithm,CryptoEncoding,digestStringAsync}from'expo-crypto';class CameraService{async hash(uri){return digestStringAsync(CryptoDigestAlgorithm.SHA256,await FileSystem.readAsStringAsync(uri,{encoding:FileSystem.EncodingType.Base64}),{encoding:CryptoEncoding.HEX})}}export default new CameraService();

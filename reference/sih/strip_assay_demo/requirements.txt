@@ -1,0 +1,7 @@
+numpy>=1.24
+opencv-python-headless>=4.8
+# Prefer tflite-runtime on-device (Android build uses TFLite directly via
+# Kotlin/Flutter bindings, not this Python runtime). For desktop verification:
+tflite-runtime>=2.14; platform_machine != "arm64"
+# Fallback if tflite-runtime wheel is unavailable for your platform:
+# tensorflow>=2.14

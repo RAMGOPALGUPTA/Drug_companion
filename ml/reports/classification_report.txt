@@ -1,0 +1,21 @@
+=======================================================
+PROTOTYPE TEST SET EVALUATION REPORT
+=======================================================
+Note: Evaluated on held-out synthetic target-style dataset.
+      Real narcotics field-test data is currently UNAVAILABLE.
+      This report validates software pipeline and arbitration logic only.
+-------------------------------------------------------
+Total Test Images:            36
+Decided Calls:                0 (0.0%)
+Inconclusive / Review Rate:   100.0% (36 flagged)
+Accuracy on Decided Calls:    0.0%
+Overall Accuracy:             33.3%
+Mean Inference Latency:       95.7 ms
+Mean ML Confidence:           0.220
+
+Confusion Matrix:
+                 Pred Neg   Pred Pos   Pred Inconcl
+True Negative       0          0          15        
+True Positive       0          0          9         
+True Inconclusive   0          0          12        
+=======================================================

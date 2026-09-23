@@ -1,0 +1,25 @@
+{
+  "model_architecture": "MobileNetV3-Small",
+  "input_width": 224,
+  "input_height": 224,
+  "channels": 3,
+  "model_input_shape": [
+    224,
+    224,
+    3
+  ],
+  "normalization": "rescaling_0_to_1",
+  "color_format": "RGB",
+  "class_labels": [
+    "negative",
+    "positive",
+    "invalid"
+  ],
+  "model_type": "SYNTHETIC_DEMO / BOOTSTRAP",
+  "target_validated": false,
+  "forensic_status": "PROTOTYPE_DEMO_ONLY_NOT_FORENSICALLY_VALIDATED",
+  "training_timestamp": "2026-09-23 15:21:30 UTC",
+  "train_samples": 476,
+  "val_samples": 108,
+  "val_accuracy": 0.1944444477558136
+}

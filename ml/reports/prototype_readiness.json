@@ -1,0 +1,20 @@
+{
+  "prototype_demo_ready": true,
+  "target_validation_ready": false,
+  "production_ready": false,
+  "datasets_downloaded": [
+    "SMCR (Smartphone Modulated Colorimetric Reader) [Tier B]",
+    "University of Reading Smartphone Colorimetric Dataset [Tier B]",
+    "Beyond RGB [Tier C]",
+    "LFT-Grounding [Tier B]",
+    "Queen's University Belfast pH Testing Dataset [Tier B]"
+  ],
+  "models_available": [
+    "MobileNetV3-Small (Keras FP32)",
+    "MobileNetV3-Small (TFLite FP32)",
+    "MobileNetV3-Small (TFLite FP16)",
+    "MobileNetV3-Small (TFLite INT8)"
+  ],
+  "tflite_available": true,
+  "demo_entrypoint": "scripts/run_demo.py"
+}

@@ -1,0 +1,30 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# JavaScript
+node_modules/
+dist/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Machine-learning data and generated artifacts
+ml/dataset/raw/
+ml/artifacts/
+mobile/assets/model.tflite
+
+# Local tool files
+.idea/
+.vscode/
