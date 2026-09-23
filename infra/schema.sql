@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS cases (
     operator_id TEXT NOT NULL REFERENCES operators(id),
     classification TEXT NOT NULL CHECK (classification IN ('positive', 'negative', 'inconclusive')),
     confidence DOUBLE PRECISION NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    location TEXT NOT NULL DEFAULT 'Field capture',
     latitude DOUBLE PRECISION CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
     longitude DOUBLE PRECISION CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
     captured_at TIMESTAMPTZ NOT NULL,
@@ -112,4 +113,5 @@ ON CONFLICT (id) DO NOTHING;
 
 -- If upgrading an existing development database created before these columns existed:
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_reference TEXT UNIQUE;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS location TEXT NOT NULL DEFAULT 'Field capture';
 ALTER TABLE evidence ADD COLUMN IF NOT EXISTS packet JSONB NOT NULL DEFAULT '{}'::jsonb;
