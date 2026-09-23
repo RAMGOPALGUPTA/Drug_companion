@@ -15,7 +15,7 @@ import json
 import os
 import uuid
 
-from core.config import EvidenceConfig
+from app.inference.config import EvidenceConfig
 
 
 def _sha256_hex(data: bytes) -> str:
