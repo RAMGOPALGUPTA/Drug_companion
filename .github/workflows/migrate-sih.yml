@@ -1,0 +1,263 @@
+name: Migrate and reorganize Sih
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Sih branch or commit to migrate"
+        required: true
+        default: "ram-backend-ml"
+      confirm:
+        description: "Type REBUILD to replace the current repository tree"
+        required: true
+        default: "REBUILD"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ github.event.inputs.confirm == 'REBUILD' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Drug Companion
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Checkout Sih source
+        uses: actions/checkout@v7
+        with:
+          repository: RAMGOPALGUPTA/Sih
+          ref: ${{ github.event.inputs.source_ref }}
+          path: _sih_source
+
+      - name: Rebuild repository layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="${GITHUB_WORKSPACE}/_sih_source"
+
+          rm -rf backend frontend mobile dashboard ml infra docs reference
+          rm -f README.md .gitignore
+          mkdir -p backend/app/{api,schemas,services,inference,evidence,db/repositories,core}
+          mkdir -p backend/models backend/tests
+          mkdir -p frontend mobile dashboard
+          mkdir -p ml/dataset ml/scripts ml/sample_data ml/reports ml/artifacts/prototype ml/demo/images ml/docs/prototype
+          mkdir -p infra docs reference/sih
+
+          cp -a "${SRC}/frontend/." frontend/
+          cp -a "${SRC}/mobile/." mobile/
+          cp -a "${SRC}/dashboard/." dashboard/
+
+          cp -a "${SRC}/backend" reference/sih/
+          cp -a "${SRC}/frontend" reference/sih/
+          cp -a "${SRC}/mobile" reference/sih/
+          cp -a "${SRC}/dashboard" reference/sih/
+          cp -a "${SRC}/ml" reference/sih/
+          cp -a "${SRC}/infra" reference/sih/
+          cp -a "${SRC}/strip_assay_demo" reference/sih/
+          cp -a "${SRC}/.github" reference/sih/
+          cp "${SRC}/README.md" reference/sih/
+          cp "${SRC}/.gitignore" reference/sih/
+
+          cp "${SRC}/backend/tests/test_integrity.py" backend/tests/
+          cp "${SRC}/strip_assay_demo/core/"*.py backend/app/inference/
+          cp "${SRC}/strip_assay_demo/evidence/evidence_packet.py" backend/app/evidence/
+          cp "${SRC}/strip_assay_demo/models/mobilenetv3_small_int8.tflite" backend/models/
+          cp "${SRC}/strip_assay_demo/models/model_metadata.json" backend/models/
+
+          mkdir -p backend/legacy
+          cp "${SRC}/backend/app/main.py" backend/legacy/main.py
+          cp "${SRC}/backend/Dockerfile" backend/legacy/Dockerfile
+          cp "${SRC}/backend/requirements.txt" backend/legacy/requirements.txt
+
+          cp "${SRC}/ml/"*.py ml/ 2>/dev/null || true
+          cp "${SRC}/ml/requirements.txt" ml/
+          cp -a "${SRC}/ml/dataset/." ml/dataset/ 2>/dev/null || true
+          cp -a "${SRC}/strip_assay_demo/scripts/." ml/scripts/
+          cp -a "${SRC}/strip_assay_demo/sample_data/." ml/sample_data/
+          cp -a "${SRC}/strip_assay_demo/reports/." ml/reports/
+          cp -a "${SRC}/strip_assay_demo/demo/images/." ml/demo/images/
+          cp -a "${SRC}/strip_assay_demo/docs/." ml/docs/prototype/
+          cp "${SRC}/strip_assay_demo/README.md" ml/README.md
+
+          cp "${SRC}/strip_assay_demo/models/bootstrap_model_fp16.tflite" ml/artifacts/prototype/
+          cp "${SRC}/strip_assay_demo/models/bootstrap_model_fp32.tflite" ml/artifacts/prototype/
+          cp "${SRC}/strip_assay_demo/models/bootstrap_model_int8.tflite" ml/artifacts/prototype/
+          cp "${SRC}/strip_assay_demo/models/bootstrap/bootstrap_model.keras" ml/artifacts/prototype/
+          cp "${SRC}/strip_assay_demo/models/checkpoints/best_mobilenetv3.keras" ml/artifacts/prototype/
+          cp "${SRC}/strip_assay_demo/models/synthetic_demo/synthetic_demo_model.keras" ml/artifacts/prototype/
+
+          cat > backend/app/main.py <<'PY'
+          from fastapi import FastAPI
+          from app.api.health import router as health_router
+
+          app = FastAPI(title="Drug Companion API", version="0.1.0")
+          app.include_router(health_router)
+
+          @app.get("/")
+          def root() -> dict[str, str]:
+              return {"service": "drug-companion-api", "status": "ok"}
+          PY
+
+          cat > backend/app/api/health.py <<'PY'
+          from fastapi import APIRouter
+          router = APIRouter(tags=["health"])
+
+          @router.get("/health")
+          def health() -> dict[str, str]:
+              return {"status": "ok"}
+          PY
+
+          for pkg in backend/app backend/app/api backend/app/schemas backend/app/services backend/app/inference backend/app/evidence backend/app/db backend/app/db/repositories backend/app/core backend/tests; do
+            touch "$pkg/__init__.py"
+          done
+
+          cat > docs/ARCHITECTURE.md <<'EOF'
+          # Drug Companion Architecture
+
+          backend: canonical FastAPI runtime
+          frontend: web application
+          mobile: field application
+          dashboard: operational dashboard
+          ml: training and evaluation
+          infra: PostgreSQL and local orchestration
+          docs: contracts and architecture
+          reference/sih: complete original Sih snapshot for traceability only
+
+          Runtime:
+          Mobile/Web -> FastAPI -> Analysis Service -> Inference Pipeline -> PostgreSQL + Evidence
+
+          Inference:
+          image -> quality gate -> calibration -> ROI -> Delta-E -> MobileNetV3 TFLite -> confidence -> arbitration -> evidence
+
+          Classification:
+          Case = positive | negative | inconclusive
+          ML = positive | negative | invalid
+          Final = positive | negative | inconclusive
+
+          The migrated prototype model is not target-validated.
+          EOF
+
+          cat > docs/MIGRATION.md <<'EOF'
+          # Sih Migration
+
+          The complete original Sih source is preserved under reference/sih.
+
+          Runtime reorganization:
+          - strip assay CV modules -> backend/app/inference
+          - evidence generation -> backend/app/evidence
+          - runtime TFLite model + metadata -> backend/models
+          - training/evaluation/scripts/reports -> ml
+          - frontend/mobile/dashboard remain first-class applications
+
+          backend/legacy contains the previous backend entrypoint as a migration reference only.
+          EOF
+
+          cat > docs/API.md <<'EOF'
+          # API Contract
+
+          GET /health
+          POST /api/v1/analyze
+          GET /api/v1/cases
+          GET /api/v1/cases/{case_id}
+          GET /api/v1/cases/{case_id}/analysis
+          GET /api/v1/cases/{case_id}/evidence
+          GET /api/v1/cases/summary
+          EOF
+
+          cat > docs/DATABASE.md <<'EOF'
+          # Database
+
+          PostgreSQL 16.
+          Source of truth: infra/schema.sql.
+
+          Tables:
+          operators
+          model_registry
+          cases
+          analysis_runs
+          evidence
+          audit_log
+          EOF
+
+          cat > docs/ML_PIPELINE.md <<'EOF'
+          # ML Pipeline
+
+          image -> quality gate -> calibration -> ROI -> CIEDE2000 -> MobileNetV3 TFLite -> confidence -> arbitration -> evidence
+
+          Input: 224x224 RGB, rescaling 0..1.
+          Labels: negative, positive, invalid.
+
+          The supplied prototype artifact is not target-validated.
+          EOF
+
+          cat > infra/docker-compose.yml <<'EOF'
+          services:
+            postgres:
+              image: postgres:16-alpine
+              container_name: drug-companion-postgres
+              restart: unless-stopped
+              environment:
+                POSTGRES_DB: drug_companion
+                POSTGRES_USER: drug_companion
+                POSTGRES_PASSWORD: drug_companion_dev
+              ports:
+                - "5432:5432"
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+                - ./schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U drug_companion -d drug_companion"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+          volumes:
+            postgres_data:
+          EOF
+
+          cp "${SRC}/infra/schema.sql" infra/schema.sql
+
+          cat > .gitignore <<'EOF'
+          __pycache__/
+          *.py[cod]
+          .venv/
+          venv/
+          node_modules/
+          dist/
+          build/
+          .env
+          .env.*
+          !.env.example
+          .pytest_cache/
+          .mypy_cache/
+          coverage/
+          *.log
+          ml/runs/
+          ml/outputs/
+          EOF
+
+          cat > README.md <<'EOF'
+          # Drug Companion
+
+          Digital field-testing companion for image-based strip analysis.
+
+          Layers:
+          - backend
+          - frontend
+          - mobile
+          - dashboard
+          - ml
+          - infra
+          - docs
+          - reference/sih
+
+          The migrated prototype model is not target-validated.
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: rebuild Drug Companion from Sih source"
+          git push origin HEAD:main
