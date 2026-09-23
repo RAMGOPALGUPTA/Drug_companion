@@ -139,8 +139,8 @@ def list_cases() -> list[dict[str, Any]]:
         with _connect() as conn:
             rows = conn.execute(
                 """
-                SELECT case_reference AS case_id, classification AS result, confidence,
-                       o.display_name AS officer, captured_at, sync_status
+                SELECT c.case_reference AS case_id, c.classification AS result, c.confidence,
+                       c.location, o.display_name AS officer, c.captured_at, c.sync_status
                 FROM cases c JOIN operators o ON o.id=c.operator_id
                 ORDER BY captured_at DESC
                 """
