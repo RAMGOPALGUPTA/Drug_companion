@@ -153,6 +153,40 @@ export function NewTest() {
               <input value={location} onChange={(e) => setLocation(e.target.value)} />
             </label>
           </div>
+          <div className="fixture-strip">
+            <div>
+              <span className="panel-eyebrow">GENERATED DEMO DATASET</span>
+              <p>Six controlled synthetic fixtures are included for prototype testing.</p>
+            </div>
+            <div className="fixture-buttons">
+              {[
+                ["positive_style.jpg", "Positive"],
+                ["negative_style.jpg", "Negative"],
+                ["inconclusive_style.jpg", "Inconclusive"],
+                ["poor_lighting.jpg", "Poor light"],
+                ["blurred.jpg", "Blurred"],
+                ["perspective_distorted.jpg", "Perspective"],
+              ].map(([name, label]) => (
+                <button
+                  className="demo-chip"
+                  key={name}
+                  type="button"
+                  onClick={async (event) => {
+                    event.stopPropagation();
+                    try {
+                      const response = await fetch("/demo-images/" + name);
+                      const blob = await response.blob();
+                      selectFile(new File([blob], name, { type: blob.type || "image/jpeg" }));
+                    } catch {
+                      setError("Unable to load demo fixture.");
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="panel process-panel">
