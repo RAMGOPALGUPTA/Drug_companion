@@ -20,4 +20,9 @@ def readiness() -> dict:
         "database_available": storage["database_available"],
         "storage_backend": storage["backend"],
         "demo_only": not model["target_validated"],
+        "readiness_state": model.get("readiness_state", "BOOTSTRAP_READY"),
+        "target_validation_status": model.get("validation", {}).get("target_validation_status", "not_validated"),
+        "forensic_validation_status": model.get("validation", {}).get("forensic_validation_status", "not_validated"),
+        "clinical_validation_status": model.get("validation", {}).get("clinical_validation_status", "not_applicable_for_current_field_screening_intent"),
+        "production_approval": model.get("validation", {}).get("production_approval", False),
     }
