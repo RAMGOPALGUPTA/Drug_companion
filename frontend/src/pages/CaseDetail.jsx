@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getCase, verifyCaseEvidence } from "../services/api.js";
+import { getCase, verifyCaseEvidence, downloadCaseReport } from "../services/api.js";
 
 function statusLabel(result) {
   return result === "inconclusive" ? "INCONCLUSIVE" : String(result || "unknown").toUpperCase();
@@ -21,6 +21,7 @@ export function CaseDetail() {
   const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +53,11 @@ export function CaseDetail() {
   const roiDetected = Boolean(c?.deltae && Object.keys(c.deltae).length);
   const evidenceState = verification?.valid === true ? "verified" : verification ? "review" : "checking";
   const mlValues = useMemo(() => Object.values(c?.ml || {}).filter((x) => x && typeof x === "object"), [c]);
+
+  async function generateReport() {
+    setReporting(true);
+    try { await downloadCaseReport(caseId); } catch (e) { setError(e.message || "Unable to generate report"); } finally { setReporting(false); }
+  }
 
   if (loading) return <div className="page-stack"><div className="panel empty-state">Loading case dossier…</div></div>;
   if (error || !c) return (
@@ -86,7 +92,7 @@ export function CaseDetail() {
               <h2>{statusLabel(c.result)}</h2>
               <p>Model confidence <strong>{Math.round(Number(c.confidence || 0) * 100)}%</strong></p>
             </div>
-            <div className={"result-orb " + c.result}>{Math.round(Number(c.confidence || 0) * 100)}<small>%</small></div>
+            <div className="case-summary-actions"><button className="secondary-button" type="button" onClick={generateReport} disabled={reporting}>{reporting ? "Generating…" : "Generate PDF"}</button><div className={"result-orb " + c.result}>{Math.round(Number(c.confidence || 0) * 100)}<small>%</small></div></div>
           </div>
           <div className="detail-grid">
             <div><span>OFFICER</span><strong>{c.officer || "—"}</strong></div>
