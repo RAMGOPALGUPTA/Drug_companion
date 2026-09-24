@@ -58,3 +58,17 @@ Then verify:
     Invoke-RestMethod http://localhost:8003/ready
     Invoke-RestMethod http://localhost:8003/api/v1/model
     Invoke-RestMethod http://localhost:8003/api/v1/storage
+
+## Validation and release gates
+
+Drug Companion now includes a reproducible validation framework under ml/validation and the validation/production plan in docs/VALIDATION_AND_PRODUCTION.md.
+
+The bundled model remains explicitly marked SYNTHETIC_DEMO / BOOTSTRAP. The API exposes readiness and validation status so a demo artifact cannot silently be presented as a validated production model.
+
+For a real target-validation run, provide a locked CSV of predictions against independently established reference results and run:
+
+    python ml/validation/evaluate_predictions.py <predictions.csv> --acceptance ml/validation/acceptance.json
+
+The evaluator reports sensitivity, specificity, PPV, NPV, coverage, inconclusive rate, confidence intervals, and site/device/batch breakdowns.
+
+Real-world, forensic, or clinical validation evidence must come from the appropriate target data and qualified validation process; software alone cannot manufacture that evidence.
