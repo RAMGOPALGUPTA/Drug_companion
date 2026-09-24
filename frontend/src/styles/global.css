@@ -2155,3 +2155,60 @@ a {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* Signal room distribution */
+.analytics-distribution {
+  display: grid;
+  grid-template-columns: .8fr 1.2fr;
+  gap: 26px;
+  align-items: center;
+}
+.distribution-copy h2 {
+  margin: 6px 0;
+  font-size: 20px;
+}
+.distribution-copy p {
+  margin: 0;
+  color: #737e76;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.distribution-bars {
+  display: grid;
+  gap: 14px;
+}
+.distribution-row {
+  display: grid;
+  grid-template-columns: 82px 1fr 30px;
+  gap: 10px;
+  align-items: center;
+}
+.distribution-row > span {
+  color: #8d978f;
+  font-size: 10px;
+}
+.distribution-row > div {
+  height: 9px;
+  border-radius: 99px;
+  background: #1a211c;
+  overflow: hidden;
+}
+.distribution-row i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+}
+.distribution-row i.positive { background: #ffb84d; }
+.distribution-row i.negative { background: #7bcf8f; }
+.distribution-row i.inconclusive { background: #a89bff; }
+.distribution-row strong {
+  text-align: right;
+  color: #e3e9e4;
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .analytics-distribution {
+    grid-template-columns: 1fr;
+  }
+}
