@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Drug Companion validation manifest",
+  "type": "object",
+  "required": ["schema_version", "dataset_id", "dataset_type", "samples"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "dataset_id": {"type": "string"},
+    "dataset_type": {"enum": ["real_world_target", "reference_material", "external_test"]},
+    "reference_method": {"type": "string"},
+    "reference_laboratory": {"type": "string"},
+    "locked_test_set": {"type": "boolean"},
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sample_id", "reference_label", "prediction_label"],
+        "properties": {
+          "sample_id": {"type": "string"},
+          "reference_label": {"enum": ["positive", "negative", "invalid"]},
+          "prediction_label": {"enum": ["positive", "negative", "invalid", "inconclusive"]},
+          "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "site": {"type": ["string", "null"]},
+          "device": {"type": ["string", "null"]},
+          "batch": {"type": ["string", "null"]},
+          "session": {"type": ["string", "null"]},
+          "reference_report_id": {"type": ["string", "null"]},
+          "image_sha256": {"type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$"}
+        }
+      }
+    }
+  }
+}
