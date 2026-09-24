@@ -60,6 +60,8 @@ export function Analytics() {
 
   const max = Math.max(1, ...trend.map((d) => d.p + d.n + d.i));
   const total = Number(summary.total_cases || 0);
+  const avgConfidence = cases.length ? Math.round((cases.reduce((sum, item) => sum + Number(item.confidence || 0), 0) / cases.length) * 100) : 0;
+  const reviewRate = total ? Math.round((Number(summary.inconclusive || 0) / total) * 100) : 0;
 
   return (
     <div className="page-stack">
@@ -109,11 +111,23 @@ export function Analytics() {
           ))}
         </div>
       </section>
+      <section className="panel analytics-distribution">
+        <div className="distribution-copy"><div className="panel-eyebrow">RESULT DISTRIBUTION</div><h2>Positive vs negative vs inconclusive</h2><p>Calculated directly from persisted backend cases.</p></div>
+        <div className="distribution-bars">
+          {[
+            ["Positive", Number(summary.positive || 0), "positive"],
+            ["Negative", Number(summary.negative || 0), "negative"],
+            ["Inconclusive", Number(summary.inconclusive || 0), "inconclusive"],
+          ].map(([label, value, key]) => (
+            <div className="distribution-row" key={key}><span>{label}</span><div><i className={key} style={{ width: `${total ? Math.round((value / total) * 100) : 0}%` }} /></div><strong>{value}</strong></div>
+          ))}
+        </div>
+      </section>
       <section className="analytics-breakdown">
         <div><span>POSITIVE</span><strong>{summary.positive || 0}</strong></div>
         <div><span>NEGATIVE</span><strong>{summary.negative || 0}</strong></div>
         <div><span>INCONCLUSIVE</span><strong>{summary.inconclusive || 0}</strong></div>
-        <div><span>DECIDED RATE</span><strong>{total ? Math.round(((Number(summary.positive || 0) + Number(summary.negative || 0)) / total) * 100) : 0}%</strong></div>
+        <div><span>DECIDED RATE</span><strong>{total ? Math.round(((Number(summary.positive || 0) + Number(summary.negative || 0)) / total) * 100) : 0}%</strong></div><div><span>AVG CONFIDENCE</span><strong>{avgConfidence}%</strong></div><div><span>REVIEW RATE</span><strong>{reviewRate}%</strong></div>
       </section>
     </div>
   );
