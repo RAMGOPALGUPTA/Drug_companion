@@ -109,8 +109,7 @@ export function Cases() {
                 {c.location || "Field capture"}
                 <small className="row-time">{c.time || ""}</small>
               </span>
-              <span className={`integrity ${c.integrity || "review"}`}>{c.integrity === "verified" ? "✓ verified" : "△ review"}</span>
-              <button className="row-report-button" onClick={(event) => generateReport(event, c.id || c.case_id)} disabled={reporting === (c.id || c.case_id)}>{reporting === (c.id || c.case_id) ? "…" : "PDF"}</button>
+              <span className="archive-actions"><span className={`integrity ${c.integrity || "review"}`}>{c.integrity === "verified" ? "✓ verified" : "△ review"}</span><button className="row-report-button" onClick={(event) => generateReport(event, c.id || c.case_id)} disabled={reporting === (c.id || c.case_id)}>{reporting === (c.id || c.case_id) ? "…" : "PDF"}</button></span>
             </Link>
           ))}
         </div>
