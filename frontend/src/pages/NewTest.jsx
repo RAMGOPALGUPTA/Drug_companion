@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { analyzeImage, getModelInfo } from "../services/api.js";
 import { pipelineLabels } from "../data/demoData.js";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -15,6 +16,7 @@ function Meter({ value }) {
 }
 
 export function NewTest() {
+  const { user } = useAuth();
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -23,7 +25,7 @@ export function NewTest() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [model, setModel] = useState(null);
-  const [operatorId, setOperatorId] = useState("demo-operator");
+  const [operatorId, setOperatorId] = useState(user?.id || "field-officer");
   const [location, setLocation] = useState("Field capture");
 
   const stage = useMemo(
