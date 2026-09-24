@@ -11,14 +11,25 @@ export function Analytics() {
   const [summary, setSummary] = useState({ total_cases: 0, positive: 0, negative: 0, inconclusive: 0 });
   const [cases, setCases] = useState([]);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
-    Promise.all([getCasesSummary(), getCases()])
-      .then(([nextSummary, nextCases]) => {
+    let active = true;
+    async function refresh() {
+      try {
+        const [nextSummary, nextCases] = await Promise.all([getCasesSummary(), getCases()]);
+        if (!active) return;
         setSummary(nextSummary);
         setCases(nextCases);
-      })
-      .catch((e) => setError(e.message || "Unable to load live analytics"));
+        setLastUpdated(new Date());
+        setError("");
+      } catch (e) {
+        if (active) setError(e.message || "Unable to load live analytics");
+      }
+    }
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   const trend = useMemo(() => {
@@ -83,7 +94,7 @@ export function Analytics() {
       <section className="panel analytics-chart">
         <div className="panel-head">
           <div><div className="panel-eyebrow">DAILY VOLUME</div><h2>Case density</h2></div>
-          <span className="panel-note">Last 7 days</span>
+          <span className="panel-note">Live · Last 7 days {lastUpdated ? `· ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
         </div>
         <div className="line-chart">
           {trend.map((d) => (
@@ -97,6 +108,12 @@ export function Analytics() {
             </div>
           ))}
         </div>
+      </section>
+      <section className="analytics-breakdown">
+        <div><span>POSITIVE</span><strong>{summary.positive || 0}</strong></div>
+        <div><span>NEGATIVE</span><strong>{summary.negative || 0}</strong></div>
+        <div><span>INCONCLUSIVE</span><strong>{summary.inconclusive || 0}</strong></div>
+        <div><span>DECIDED RATE</span><strong>{total ? Math.round(((Number(summary.positive || 0) + Number(summary.negative || 0)) / total) * 100) : 0}%</strong></div>
       </section>
     </div>
   );
