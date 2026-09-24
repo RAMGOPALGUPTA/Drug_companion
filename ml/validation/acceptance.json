@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "status": "not_approved",
+  "criteria_owner": "",
+  "approved_at": null,
+  "minimum_test_samples": null,
+  "minimum_sensitivity": null,
+  "minimum_specificity": null,
+  "maximum_inconclusive_rate": null,
+  "minimum_coverage": null,
+  "notes": "Thresholds must be approved for the intended kit, analyte scope, jurisdiction, and use case before a target-validation run is accepted."
+}
