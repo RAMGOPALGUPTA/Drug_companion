@@ -85,6 +85,8 @@ def get_model_info() -> dict:
         "forensic_status": metadata.get(
             "forensic_status", "PROTOTYPE_DEMO_ONLY_NOT_FORENSICALLY_VALIDATED"
         ),
+        "readiness_state": metadata.get("readiness_state", "BOOTSTRAP_READY"),
+        "validation": metadata.get("validation", {}),
     }
 
 
