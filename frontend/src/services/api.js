@@ -93,3 +93,28 @@ export async function getStorageStatus() {
   })
   return parseResponse(response, 'Unable to load storage status')
 }
+
+
+export async function downloadCaseReport(caseId) {
+  const response = await fetch(
+    `${API_URL}/cases/${encodeURIComponent(caseId)}/report`,
+    { headers: requestHeaders() },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Unable to generate case report");
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/i);
+  const filename = match?.[1] || `Drug-Companion-${caseId}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return filename;
+}
