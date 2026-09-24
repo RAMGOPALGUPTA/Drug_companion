@@ -12,6 +12,10 @@ import { Cases } from "./pages/Cases.jsx";
 import { CaseDetail } from "./pages/CaseDetail.jsx";
 import { Evidence } from "./pages/Evidence.jsx";
 import { Analytics } from "./pages/Analytics.jsx";
+import { Login } from "./pages/Login.jsx";
+import { Profile } from "./pages/Profile.jsx";
+import { useAuth } from "./auth/AuthContext.jsx";
+import { useTheme } from "./theme/ThemeContext.jsx";
 import { getModelInfo, getStorageStatus } from "./services/api.js";
 
 function Glyph({ type, size = 18 }) {
@@ -42,6 +46,8 @@ function Glyph({ type, size = 18 }) {
 
 function Shell({ children }) {
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [runtime, setRuntime] = useState({ model: false, database: false });
 
   useEffect(() => {
@@ -61,17 +67,17 @@ function Shell({ children }) {
       return ["Evidence integrity", "Hashes, provenance, verification"];
     if (location.pathname.startsWith("/analytics"))
       return ["Signal room", "Read the operation at a glance"];
-    return ["Field Evidence Console", "SIH26231 · Digital Companion"];
+    return ["Drug Companion Console", "Field intelligence · Evidence workflow"];
   }, [location.pathname]);
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-mark">FE</div>
+          <div className="brand-mark">DC</div>
           <div>
-            <div className="brand-name">Field Evidence</div>
-            <div className="brand-sub">SIH26231 / CONSOLE</div>
+            <div className="brand-name">Drug Companion</div>
+            <div className="brand-sub">FIELD INTELLIGENCE / CONSOLE</div>
           </div>
         </div>
 
@@ -112,11 +118,11 @@ function Shell({ children }) {
             <div className="connection-copy">Inference gateway armed</div>
           </div>
         </div>
-        <button className="operator-button" onClick={() => navigate("/")}>
-          <div className="operator-avatar">RG</div>
+        <button className="operator-button" onClick={() => navigate("/profile")}>
+          <div className="operator-avatar">{user?.name?.slice(0, 2).toUpperCase() || "FO"}</div>
           <div className="operator-meta">
-            <strong>Ram Gupta</strong>
-            <span>Field Officer · A-17</span>
+            <strong>{user?.name || "Field Officer"}</strong>
+            <span>{user?.role || "Field Officer"} · {user?.id || "—"}</span>
           </div>
           <Glyph type="gear" size={17} />
         </button>
@@ -129,6 +135,9 @@ function Shell({ children }) {
             <h1>{title[0]}</h1>
           </div>
           <div className="topbar-actions">
+            <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>
+              <span>{theme === "dark" ? "☀" : "☾"}</span> {theme === "dark" ? "Light" : "Dark"}
+            </button>
             <div className="status-chip">
               <span className="chip-dot" /> {runtime.model && runtime.database ? "API READY" : "API DEGRADED"}
             </div>
@@ -142,7 +151,7 @@ function Shell({ children }) {
         </header>
         {children}
         <footer className="footer-line">
-          <span>Prototype environment · Live backend data</span>
+          <span>Drug Companion · Live backend data</span>
           <span>MODEL / MobileNetV3-Small · 224×224 RGB · bootstrap</span>
         </footer>
       </main>
@@ -151,6 +160,9 @@ function Shell({ children }) {
 }
 
 export default function App() {
+  const { user } = useAuth();
+  if (!user) return <Login />;
+
   return (
     <Shell>
       <Routes>
@@ -160,6 +172,7 @@ export default function App() {
         <Route path="/cases/:caseId" element={<CaseDetail />} />
         <Route path="/evidence" element={<Evidence />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </Shell>
   );
