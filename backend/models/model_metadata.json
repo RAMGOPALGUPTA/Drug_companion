@@ -21,5 +21,16 @@
   "training_timestamp": "2026-09-23 15:21:30 UTC",
   "train_samples": 476,
   "val_samples": 108,
-  "val_accuracy": 0.1944444477558136
+  "val_accuracy": 0.1944444477558136,
+  "validation": {
+    "target_validation_status": "not_validated",
+    "real_world_dataset_available": false,
+    "locked_test_set_available": false,
+    "target_evaluation_report_available": false,
+    "forensic_validation_status": "not_validated",
+    "clinical_validation_status": "not_applicable_for_current_field_screening_intent",
+    "production_approval": false,
+    "validation_framework_version": "1.0.0"
+  },
+  "readiness_state": "BOOTSTRAP_READY"
 }
