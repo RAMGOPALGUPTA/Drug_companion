@@ -35,3 +35,5 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - run: pytest -q
+      - name: Validate evaluation harness
+        run: python -m pytest ../ml/validation/tests -q
