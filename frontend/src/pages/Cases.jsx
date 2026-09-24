@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCases } from "../services/api.js";
+import { getCases, downloadCaseReport } from "../services/api.js";
 
 const labels = {
   positive: "POSITIVE",
@@ -14,6 +14,7 @@ export function Cases() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reporting, setReporting] = useState("");
 
   async function loadCases() {
     setLoading(true);
@@ -42,6 +43,13 @@ export function Cases() {
       ),
     [cases, query, filter],
   );
+
+  async function generateReport(event, caseId) {
+    event.preventDefault();
+    event.stopPropagation();
+    setReporting(caseId);
+    try { await downloadCaseReport(caseId); } catch (e) { setError(e.message || "Unable to generate report"); } finally { setReporting(""); }
+  }
 
   return (
     <div className="page-stack">
@@ -79,14 +87,7 @@ export function Cases() {
 
       <section className="panel table-panel">
         <div className="case-table wide">
-          <div className="case-row header">
-            <span>CASE</span>
-            <span>RESULT</span>
-            <span>CONFIDENCE</span>
-            <span>OFFICER</span>
-            <span>LOCATION</span>
-            <span>INTEGRITY</span>
-          </div>
+          <div className="case-row header"><span>CASE</span><span>RESULT</span><span>CONFIDENCE</span><span>OFFICER</span><span>LOCATION</span><span>INTEGRITY / REPORT</span></div>
 
           {!loading && visible.length === 0 && !error && (
             <div className="empty-state">No persisted cases match this view.</div>
@@ -108,9 +109,8 @@ export function Cases() {
                 {c.location || "Field capture"}
                 <small className="row-time">{c.time || ""}</small>
               </span>
-              <span className={`integrity ${c.integrity || "review"}`}>
-                {c.integrity === "verified" ? "✓ verified" : "△ review"}
-              </span>
+              <span className={`integrity ${c.integrity || "review"}`}>{c.integrity === "verified" ? "✓ verified" : "△ review"}</span>
+              <button className="row-report-button" onClick={(event) => generateReport(event, c.id || c.case_id)} disabled={reporting === (c.id || c.case_id)}>{reporting === (c.id || c.case_id) ? "…" : "PDF"}</button>
             </Link>
           ))}
         </div>
