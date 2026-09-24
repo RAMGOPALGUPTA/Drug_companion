@@ -14,7 +14,7 @@ import { Evidence } from "./pages/Evidence.jsx";
 import { Analytics } from "./pages/Analytics.jsx";
 import { Login } from "./pages/Login.jsx";
 import { Profile } from "./pages/Profile.jsx";
-import { useAuth } from "./auth/AuthContext.jsx";
+import { useAuth, rolePermissions } from "./auth/AuthContext.jsx";
 import { useTheme } from "./theme/ThemeContext.jsx";
 import { getModelInfo, getStorageStatus } from "./services/api.js";
 
@@ -46,7 +46,7 @@ function Glyph({ type, size = 18 }) {
 
 function Shell({ children }) {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [runtime, setRuntime] = useState({ model: false, database: false });
 
@@ -103,19 +103,15 @@ function Shell({ children }) {
             <span>Evidence</span>
             <kbd>04</kbd>
           </NavLink>
-          <NavLink className="nav-item" to="/analytics">
-            <Glyph type="chart" />
-            <span>Signal Room</span>
-            <kbd>05</kbd>
-          </NavLink>
+          {rolePermissions[user?.role]?.analytics && <NavLink className="nav-item" to="/analytics"><Glyph type="chart" /><span>Signal Room</span><kbd>05</kbd></NavLink>}
         </nav>
 
         <div className="sidebar-spacer" />
         <div className="connection-card">
           <div className="pulse-dot" />
           <div>
-            <div className="connection-title">Prototype online</div>
-            <div className="connection-copy">Inference gateway armed</div>
+            <div className="connection-title">System online</div>
+            <div className="connection-copy">Inference gateway ready</div>
           </div>
         </div>
         <button className="operator-button" onClick={() => navigate("/profile")}>
@@ -171,7 +167,7 @@ export default function App() {
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:caseId" element={<CaseDetail />} />
         <Route path="/evidence" element={<Evidence />} />
-        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/analytics" element={rolePermissions[user?.role]?.analytics ? <Analytics /> : <Dashboard />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
     </Shell>
