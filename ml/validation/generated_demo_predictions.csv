@@ -1,0 +1,7 @@
+sample_id,reference_label,prediction_label,confidence,site,device,batch,session
+positive_style,positive,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,positive_style
+negative_style,negative,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,negative_style
+inconclusive_style,inconclusive,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,inconclusive_style
+poor_lighting,inconclusive,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,poor_lighting
+blurred,inconclusive,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,blurred
+perspective_distorted,inconclusive,inconclusive,0.0,synthetic,generated-demo,generated_strip_demo_v1,perspective_distorted
