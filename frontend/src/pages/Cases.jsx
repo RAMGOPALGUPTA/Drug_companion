@@ -94,8 +94,8 @@ export function Cases() {
           )}
 
           {visible.map((c) => (
-            <Link className="case-row" key={c.id || c.case_id} to={`/cases/${c.id || c.case_id}`}>
-              <span className="case-id">{c.id || c.case_id}</span>
+            <div className="case-row" key={c.id || c.case_id}>
+              <Link className="case-id" to={`/cases/${c.id || c.case_id}`}>{c.id || c.case_id}</Link>
               <span>
                 <span className={`result-pill ${c.result}`}>
                   {labels[c.result] || String(c.result).toUpperCase()}
@@ -110,7 +110,7 @@ export function Cases() {
                 <small className="row-time">{c.time || ""}</small>
               </span>
               <span className="archive-actions"><span className={`integrity ${c.integrity || "review"}`}>{c.integrity === "verified" ? "✓ verified" : "△ review"}</span><button className="row-report-button" onClick={(event) => generateReport(event, c.id || c.case_id)} disabled={reporting === (c.id || c.case_id)}>{reporting === (c.id || c.case_id) ? "…" : "PDF"}</button></span>
-            </Link>
+            </div>
           ))}
         </div>
       </section>
